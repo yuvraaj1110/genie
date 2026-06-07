@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { scroll-behavior: smooth; }
+  body { @apply bg-ink text-fg font-sans antialiased; }
+  .accent { @apply font-normal pb-[2px] border-b-2 border-fg; }
+}
+
+.fade { transition: opacity 0.5s ease; }
