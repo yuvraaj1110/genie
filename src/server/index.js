@@ -3,6 +3,7 @@ import express from "express";
 import fs from "fs";
 import path from "path";
 import { buildCrmPayload } from "./payload-builder.js";
+import { computeTurnLatencies, summarizeLatency } from "./latency-tracker.js";
 
 const PAYLOADS_DIR = path.resolve("payloads");
 if (!fs.existsSync(PAYLOADS_DIR)) fs.mkdirSync(PAYLOADS_DIR);
@@ -97,9 +98,16 @@ app.post("/webhook/vapi", (req, res) => {
 
     const crmPayload = buildCrmPayload(callData, args);
 
-    // ── Write to payloads/<callId>.json ──────────────────────────────────────
+    // ── Latency observability (Objective 2: performance visibility) ──────────
+    const turns = computeTurnLatencies(message.artifact?.messages ?? []);
+    const latency = summarizeLatency(turns);
+
+    // ── Write to payloads/<callId>.json (payload + performance block) ────────
     const filename = path.join(PAYLOADS_DIR, `${callData.id ?? "unknown"}.json`);
-    fs.writeFileSync(filename, JSON.stringify(crmPayload, null, 2));
+    fs.writeFileSync(
+      filename,
+      JSON.stringify({ ...crmPayload, performance: { latency, turns } }, null, 2)
+    );
 
     // ── Pretty console summary ───────────────────────────────────────────────
     const score = crmPayload.rep_priority_score;
@@ -121,7 +129,23 @@ app.post("/webhook/vapi", (req, res) => {
     console.log(`║  rep_priority   ${scoreBar} ${String(score).padStart(3)}/100 ║`);
     console.log("╠══════════════════════════════════════════════╣");
     console.log(`║  saved → ${filename.padEnd(36)} ║`);
-    console.log("╚══════════════════════════════════════════════╝\n");
+    console.log("╚══════════════════════════════════════════════╝");
+
+    // ── Latency breakdown ────────────────────────────────────────────────────
+    if (latency.turns > 0) {
+      console.log("┌─ AGENT RESPONSE LATENCY (per turn) ────────────┐");
+      for (const t of turns) {
+        const bar = "▮".repeat(Math.min(20, Math.round(t.latencyMs / 100)));
+        console.log(
+          `│ turn ${String(t.turn).padStart(2)}  ${String(t.latencyMs + "ms").padStart(6)}  ${bar.padEnd(20)} │`
+        );
+      }
+      console.log("├────────────────────────────────────────────────┤");
+      console.log(
+        `│ min ${latency.minMs}ms · avg ${latency.avgMs}ms · p95 ${latency.p95Ms}ms · max ${latency.maxMs}ms`.padEnd(49) + "│"
+      );
+      console.log("└────────────────────────────────────────────────┘\n");
+    }
 
     if (callData.id) resultsByCallId.delete(callData.id);
   }
