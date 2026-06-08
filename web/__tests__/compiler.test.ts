@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { deriveCaptureKey, buildToolSchema } from "@/lib/compiler";
+import { compileAgent } from "@/lib/compiler";
 import { DEFAULT_NODES } from "@/lib/nodes";
 
 describe("deriveCaptureKey", () => {
@@ -40,5 +41,37 @@ describe("buildToolSchema", () => {
     const t = buildToolSchema(DEFAULT_NODES);
     expect(t.function.parameters.properties).not.toHaveProperty("rpc");
     expect(t.function.parameters.properties).not.toHaveProperty("offer");
+  });
+});
+
+describe("compileAgent", () => {
+  const globals = { voice: "Aanya (Hindi)", register: "Tier 2/3", maxDurationSec: 60 };
+
+  it("uses the RPC node's opening line as firstMessage", () => {
+    const out = compileAgent(DEFAULT_NODES, globals);
+    expect(out.firstMessage).toContain("नमस्ते");
+  });
+
+  it("embeds every node's script text and the duration cap in the prompt", () => {
+    const out = compileAgent(DEFAULT_NODES, globals);
+    expect(out.systemPrompt).toContain("60");
+    expect(out.systemPrompt).toContain("आपके नाम पर");
+    expect(out.systemPrompt).toContain("आप नौकरी करते हैं");
+    expect(out.systemPrompt).toMatch(/Aadhaar/i);
+    expect(out.systemPrompt).toMatch(/submit_call_result/);
+    expect(out.systemPrompt).toMatch(/endCall/);
+  });
+
+  it("returns capture keys for data nodes, paired with node ids", () => {
+    const out = compileAgent(DEFAULT_NODES, globals);
+    expect(out.captureKeys).toEqual([
+      { nodeId: "n-employment", key: "employment_type" },
+      { nodeId: "n-amount", key: "loan_amount_range" },
+    ]);
+  });
+
+  it("exposes the tool schema", () => {
+    const out = compileAgent(DEFAULT_NODES, globals);
+    expect(out.toolSchema.function.name).toBe("submit_call_result");
   });
 });
