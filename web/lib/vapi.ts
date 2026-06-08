@@ -1,9 +1,11 @@
 import type { CompiledAgent, Globals } from "./compiler";
 
-export function buildAssistantBody(compiled: CompiledAgent, _globals: Globals, serverUrl: string) {
+export function buildAssistantBody(compiled: CompiledAgent, globals: Globals, serverUrl: string) {
   return {
     name: "VOIZ Generated Agent",
     firstMessage: compiled.firstMessage,
+    // Enforce the user's call budget on Vapi's side (a little headroom over the cap).
+    maxDurationSeconds: Math.max(30, globals.maxDurationSec + 10),
     model: {
       provider: "anthropic",
       model: "claude-3-5-haiku-20241022",
