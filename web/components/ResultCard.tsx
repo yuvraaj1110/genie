@@ -67,7 +67,7 @@ export function ResultCard({
         >
           Build another
         </button>
-        <TrialCta variant="inline" label="Like it? Start your trial →" />
+        <TrialCta variant="inline" label="Like it? Get real trial" />
       </div>
     </div>
   );

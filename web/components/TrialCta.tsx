@@ -8,7 +8,7 @@ const BASE = "bg-amber-300 text-ink font-semibold hover:bg-amber-200 transition-
 
 export function TrialCta({
   variant = "inline",
-  label = "Start your trial →",
+  label = "Get real trial",
 }: {
   variant?: "floating" | "inline";
   label?: string;
