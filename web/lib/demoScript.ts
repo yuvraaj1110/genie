@@ -23,11 +23,11 @@ function field(node: AgentNode, key: string): string {
   return String(node.fields.find((f) => f.key === key)?.value ?? "");
 }
 
-/** First configured option, else a generic non-empty marker so the field lights up. */
-function captureValue(node: AgentNode): string {
+/** First configured option, else the authored reply, else a generic non-empty marker. */
+function captureValue(node: AgentNode, reply: string): string {
   const opts = node.fields.find((f) => f.key === "options")?.value;
   if (Array.isArray(opts) && opts.length > 0) return String(opts[0]);
-  return "PROVIDED";
+  return reply.trim() || "PROVIDED";
 }
 
 /** Build the timed walkthrough script for the agent the user just configured. */
@@ -54,11 +54,12 @@ export function buildDemoScript(
 
     if (node.type === "offer") continue; // statement, no reply
 
-    push({ kind: "transcript", role: "user", text: CANNED_USER[node.type] ?? CANNED_USER.custom });
+    const reply = field(node, "reply").trim() || CANNED_USER[node.type] || CANNED_USER.custom;
+    push({ kind: "transcript", role: "user", text: reply });
 
     if (node.capturesData) {
       const key = keyFor(node.id);
-      if (key) push({ kind: "capture", key, value: captureValue(node) });
+      if (key) push({ kind: "capture", key, value: captureValue(node, reply) });
     }
   }
 

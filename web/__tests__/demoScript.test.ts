@@ -46,4 +46,56 @@ describe("buildDemoScript", () => {
     const s = buildDemoScript(nodes, keys);
     expect(s.filter((x) => x.kind === "capture").length).toBe(1);
   });
+
+  it("plays an authored reply as the customer line", () => {
+    const nodes = DEFAULT_NODES.map((n) =>
+      n.type === "employment"
+        ? { ...n, fields: n.fields.map((f) => (f.key === "reply" ? { ...f, value: "Ji main salaried hoon" } : f)) }
+        : n,
+    );
+    const keys = compileAgent(nodes, GLOBALS).captureKeys;
+    const s = buildDemoScript(nodes, keys);
+    const userLines = s.filter(
+      (x): x is Extract<ScriptStep, { kind: "transcript" }> => x.kind === "transcript" && x.role === "user",
+    );
+    expect(userLines.some((l) => l.text === "Ji main salaried hoon")).toBe(true);
+  });
+
+  it("captures the reply text verbatim for a custom (free-text) node", () => {
+    const custom: AgentNode = {
+      id: "n-custom-1", type: "custom", title: "State", desc: "", pill: "DATA",
+      icon: "interest", accent: "violet", capturesData: true,
+      fields: [
+        { key: "question", label: "Q", kind: "text", value: "Aap kaunsi state se ho?" },
+        { key: "field", label: "as", kind: "text", value: "state" },
+        { key: "reply", label: "Sample customer reply (demo)", kind: "text", value: "Main Maharashtra se hoon" },
+      ],
+    };
+    const nodes = [DEFAULT_NODES[0], custom, DEFAULT_NODES[5]];
+    const keys = compileAgent(nodes, GLOBALS).captureKeys;
+    const s = buildDemoScript(nodes, keys);
+    let state = initialCallState(0);
+    for (const step of s) for (const ev of eventsForStep(step, 1000)) state = reduceCall(state, ev);
+    expect(state.submitArgs?.state).toBe("Main Maharashtra se hoon");
+    expect(state.captured).toContain("state");
+  });
+
+  it("falls back to a non-empty canned line when reply is blank", () => {
+    const custom: AgentNode = {
+      id: "n-custom-1", type: "custom", title: "X", desc: "", pill: "DATA",
+      icon: "interest", accent: "violet", capturesData: true,
+      fields: [
+        { key: "question", label: "Q", kind: "text", value: "Sawaal?" },
+        { key: "field", label: "as", kind: "text", value: "x" },
+        { key: "reply", label: "r", kind: "text", value: "" },
+      ],
+    };
+    const nodes = [DEFAULT_NODES[0], custom, DEFAULT_NODES[5]];
+    const keys = compileAgent(nodes, GLOBALS).captureKeys;
+    const s = buildDemoScript(nodes, keys);
+    const userLines = s.filter(
+      (x): x is Extract<ScriptStep, { kind: "transcript" }> => x.kind === "transcript" && x.role === "user",
+    );
+    expect(userLines.every((l) => l.text.length > 0)).toBe(true);
+  });
 });
