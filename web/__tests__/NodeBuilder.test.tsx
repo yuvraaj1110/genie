@@ -36,7 +36,7 @@ describe("NodeBuilder", () => {
   it("deploys with a payload describing the nodes and shows a deploying state", async () => {
     const onDeploy = vi.fn().mockResolvedValue(undefined);
     render(<NodeBuilder onDeploy={onDeploy} />);
-    fireEvent.click(screen.getByRole("button", { name: /deploy/i }));
+    fireEvent.click(screen.getByRole("button", { name: /see simulation/i }));
     await waitFor(() =>
       expect(onDeploy).toHaveBeenCalledWith(
         expect.objectContaining({
